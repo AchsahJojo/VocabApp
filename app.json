@@ -9,8 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.csumb.myvocabvault"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -34,8 +33,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-sqlite",
-      "expo-secure-store"
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
