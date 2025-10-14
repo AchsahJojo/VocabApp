@@ -34,7 +34,7 @@ export default function CreateAccount() {
   
       if (response.ok) {
         Alert.alert("Sign Up Successful", "You can now log in.");
-        navigation.navigate("LoginPage");
+        (navigation as any).navigate("LoginPage");
       } else {
         Alert.alert("Sign Up Failed", data.error || "An error occurred");
       }

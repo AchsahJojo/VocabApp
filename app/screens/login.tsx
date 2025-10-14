@@ -1,61 +1,61 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useSQLiteContext } from "expo-sqlite";
+
+// Option 1: If api.ts is at root/config/api.ts
+// import { API_ENDPOINTS } from "../../config/api";
+
+// Option 2: If api.ts is at app/utils/api.ts
+// import { API_ENDPOINTS } from "../utils/api";
+
+// Temporary inline solution - define API_BASE_URL directly in this file
+const API_BASE_URL = 'http://localhost:8080';
+const API_ENDPOINTS = {
+  LOGIN: `${API_BASE_URL}/api/auth/login`,
+};
 
 export default function LoginPage() {
   const navigation = useNavigation();
-  const db = useSQLiteContext();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Validate inputs
     if (!email.trim() || !password.trim()) {
       Alert.alert("Error", "Please enter both email and password");
       return;
     }
-    console.log("Attempting login with email:", email); // Debug log
+
+    setLoading(true);
+    console.log("Attempting login with email:", email);
 
     try {
-      // First, let's check if the table exists and has data
-      const allUsers = await db.getAllAsync("SELECT * FROM users");
-      console.log("All users in database:", allUsers); // Debug log
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password
+        }),
+      });
 
-      const userData = await db.getFirstAsync(
-        "SELECT * FROM users WHERE email = ?", 
-        [email.trim()]
-      );
-      
-      console.log("User data found:", userData); // Debug log
-      
-      if (!userData) {
-        Alert.alert("Login Failed", "User not found.");
-        return;
-      }
+      const data = await response.json();
+      console.log("Login response:", data);
 
-      const validUser = await db.getFirstAsync(
-        "SELECT * FROM users WHERE email = ? AND password = ?", 
-        [email.trim(), password]
-      );
-      
-      console.log("Valid user:", validUser); // Debug log
-      
-      if (validUser) {
-        // Check what properties exist on validUser
-        console.log("Valid user keys:", Object.keys(validUser));
-        
-        // Try different possible column names
-        const userId = validUser.userID || validUser.id || validUser.user_id || validUser.userId;
-        
-        console.log("Navigating with userID:", userId);
-        (navigation as any).navigate("LandingPage", { userID: userId });
+      if (response.ok) {
+        // Success! Navigate to landing page with userId
+        (navigation as any).navigate("LandingPage", { userID: data.userId });
       } else {
-        Alert.alert("Login Failed", "Incorrect password.");
+        // Show error from backend
+        Alert.alert("Login Failed", data.error || "An error occurred");
       }
     } catch (error) {
-      console.error("Login error:", error); // Better error logging
-      Alert.alert("Login Failed", error?.message || "An unknown error occurred");
+      console.error("Login error:", error);
+      Alert.alert("Connection Error", "Could not connect to server. Make sure the backend is running.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,6 +70,7 @@ export default function LoginPage() {
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
+        editable={!loading}
       />
       <TextInput 
         style={styles.input} 
@@ -78,8 +79,17 @@ export default function LoginPage() {
         value={password} 
         onChangeText={setPassword}
         autoCapitalize="none"
+        editable={!loading}
       />
-      <Button title="Log In" onPress={handleLogin} color="#FF5733" />
+      {loading ? (
+        <ActivityIndicator size="large" color="#FF5733" />
+      ) : (
+        <Button 
+          title="Log In" 
+          onPress={handleLogin} 
+          color="#FF5733"
+        />
+      )}
       <TouchableOpacity onPress={() => (navigation as any).navigate("ForgotPassword")}> 
         <Text style={{ color: "blue", marginTop: 10 }}>Forgot/Reset Password?</Text> 
       </TouchableOpacity>
