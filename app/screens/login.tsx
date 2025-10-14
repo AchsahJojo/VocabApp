@@ -10,31 +10,77 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
+    // Validate inputs
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
+    console.log("Attempting login with email:", email); // Debug log
+
     try {
-      const userData = await db.getFirstAsync("SELECT * FROM users WHERE email = ?", [email]);
+      // First, let's check if the table exists and has data
+      const allUsers = await db.getAllAsync("SELECT * FROM users");
+      console.log("All users in database:", allUsers); // Debug log
+
+      const userData = await db.getFirstAsync(
+        "SELECT * FROM users WHERE email = ?", 
+        [email.trim()]
+      );
+      
+      console.log("User data found:", userData); // Debug log
+      
       if (!userData) {
         Alert.alert("Login Failed", "User not found.");
         return;
       }
 
-      const validUser = await db.getFirstAsync("SELECT * FROM users WHERE email = ? AND password = ?", [email, password]);
+      const validUser = await db.getFirstAsync(
+        "SELECT * FROM users WHERE email = ? AND password = ?", 
+        [email.trim(), password]
+      );
+      
+      console.log("Valid user:", validUser); // Debug log
+      
       if (validUser) {
-        navigation.navigate("LandingPage", { userID: validUser.userID });
+        // Check what properties exist on validUser
+        console.log("Valid user keys:", Object.keys(validUser));
+        
+        // Try different possible column names
+        const userId = validUser.userID || validUser.id || validUser.user_id || validUser.userId;
+        
+        console.log("Navigating with userID:", userId);
+        (navigation as any).navigate("LandingPage", { userID: userId });
       } else {
         Alert.alert("Login Failed", "Incorrect password.");
       }
     } catch (error) {
-      Alert.alert("Login Failed", error.message || "An unknown error occurred");
+      console.error("Login error:", error); // Better error logging
+      Alert.alert("Login Failed", error?.message || "An unknown error occurred");
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome Back!</Text>
-      <TextInput style={styles.input} placeholder="User Name" value={email} onChangeText={setEmail} />
-      <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
+      <TextInput 
+        style={styles.input} 
+        placeholder="Email" 
+        value={email} 
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+      />
+      <TextInput 
+        style={styles.input} 
+        placeholder="Password" 
+        secureTextEntry 
+        value={password} 
+        onChangeText={setPassword}
+        autoCapitalize="none"
+      />
       <Button title="Log In" onPress={handleLogin} color="#FF5733" />
-      <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}> 
+      <TouchableOpacity onPress={() => (navigation as any).navigate("ForgotPassword")}> 
         <Text style={{ color: "blue", marginTop: 10 }}>Forgot/Reset Password?</Text> 
       </TouchableOpacity>
     </View>
@@ -62,7 +108,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 10,
     marginBottom: 10,
+    backgroundColor: "#fff",
   },
 });
-
-
