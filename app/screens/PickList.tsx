@@ -10,28 +10,51 @@ import {
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
-export default function PickList({ route }) {
+interface VocabList {
+  listID: number;
+  userID: number;
+  listName: string;
+}
+
+interface RouteParams {
+  userID: number;
+  vocabHistoryID: number;
+  dailyWord: string;
+  definition: string;
+}
+
+interface PickListProps {
+  route: {
+    params: RouteParams;
+  };
+}
+
+interface ItemProps {
+  item: VocabList;
+  onPress: () => void;
+  backgroundColor: string;
+  textColor: string;
+}
+
+export default function PickList({ route }: PickListProps) {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
   const db = useSQLiteContext();
-  const [vocabLists, setVocabLists] = useState([]);
+  const [vocabLists, setVocabLists] = useState<VocabList[]>([]);
   const { userID, vocabHistoryID, dailyWord, definition } = route.params;
   const [selectedID, setSelectedID] = useState<number | null>(null);
 
-  let isMounted = true;
-
   useEffect(() => {
-    // Added due to risk of errors
     let isMounted = true;
 
     if (db) {
       const loadVocabLists = async () => {
         try {
-          // Debugging
-          // console.log(`Fetching vocab lists for userID: ${userID} and vocabHistoryID: ${vocabHistoryID}`);
-
-          // gets all created lists from user except for Vocab History
-          const results = await db.getAllAsync("SELECT * FROM vocabLists WHERE userID = ? AND listID != ?", [userID, vocabHistoryID]);
+          const results = await db.getAllAsync<VocabList>(
+            "SELECT * FROM vocabLists WHERE userID = ? AND listID != ?", 
+            [userID, vocabHistoryID]
+          );
+          
           if (isMounted) {
             setVocabLists(results);
           }
@@ -47,17 +70,18 @@ export default function PickList({ route }) {
       loadVocabLists();
     }
 
-    return () => { isMounted = false; };
-  }, [db, userID]);
+    return () => { 
+      isMounted = false; 
+    };
+  }, [db, userID, vocabHistoryID]);
 
-  const Item = ({ item, onPress, backgroundColor, textColor }) => (
+  const Item = ({ item, onPress, backgroundColor, textColor }: ItemProps) => (
     <TouchableOpacity onPress={onPress} style={[styles.item, { backgroundColor }]}>
-      <Text style={[styles.listName, { color: textColor }]}>{item.listName || item.word}</Text>
+      <Text style={[styles.listName, { color: textColor }]}>{item.listName}</Text>
     </TouchableOpacity>
   );
 
-
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item }: { item: VocabList }) => {
     const backgroundColor = item.listID === selectedID ? "#aed6f1" : "#5dade2";
     const color = item.listID === selectedID ? "black" : "white";
 
@@ -75,7 +99,7 @@ export default function PickList({ route }) {
     );
   };
 
-  const saveWordToList = async (chosenID) => {
+  const saveWordToList = async (chosenID: number) => {
     if (dailyWord && definition) {
       try {
         const existingWord = await db.getFirstAsync(
@@ -83,8 +107,12 @@ export default function PickList({ route }) {
           [userID, chosenID, dailyWord]
         );
 
-        const existingList = await db.getFirstAsync("SELECT * FROM vocabLists WHERE userID = ? AND listID = ?", [userID, chosenID]);
-        const chosenListName = existingList.listName;
+        const existingList = await db.getFirstAsync<VocabList>(
+          "SELECT * FROM vocabLists WHERE userID = ? AND listID = ?", 
+          [userID, chosenID]
+        );
+        
+        const chosenListName = existingList?.listName || "Unknown List";
 
         if (existingWord) {
           console.log(`⚠️ Word '${dailyWord}' already exists in ${chosenListName}.`);
@@ -97,7 +125,7 @@ export default function PickList({ route }) {
           [userID, chosenID, dailyWord, definition]
         );
 
-        if (response && response.changes > 0) { // Check if changes were made
+        if (response && response.changes > 0) {
           console.log(`✅ Saved '${dailyWord}' to ${chosenListName}.`);
           alert(`Word saved to ${chosenListName}!`);
         } else {
@@ -118,12 +146,10 @@ export default function PickList({ route }) {
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Select List to Add "{dailyWord}"</Text>
         </View>
-        {/* Added for center alignment */}
         <View style={styles.rightContent} />
       </View>
 
       <SafeAreaView style={styles.container}>
-        {/* Vocab Lists Section */}
         {loading ? (
           <Text>Loading Vocab Lists...</Text>
         ) : vocabLists.length === 0 ? (
@@ -138,7 +164,7 @@ export default function PickList({ route }) {
       </SafeAreaView>
     </SafeAreaProvider>
   );
-};
+}
 
 const styles = StyleSheet.create({
   header: {
@@ -173,12 +199,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
   },
   noListsText: {
     textAlign: "center",

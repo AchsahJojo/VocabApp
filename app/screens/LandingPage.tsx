@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 
 // Define API endpoints directly in this file
 const API_BASE_URL = 'http://localhost:8080';
+
 const API_ENDPOINTS = {
   RANDOM_WORD: `${API_BASE_URL}/api/dictionary/random`,
   GET_LISTS_NO_HISTORY: (userId: string) => `${API_BASE_URL}/api/vocab/lists/${userId}/exclude-history`,
@@ -36,6 +37,7 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
   const fetchDailyWord = async () => {
     setLoading(true);
     try {
+      console.log("🔍 Fetching random word from:", API_ENDPOINTS.RANDOM_WORD);
       const response = await fetch(API_ENDPOINTS.RANDOM_WORD);
 
       if (!response.ok) {
@@ -43,12 +45,12 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
       }
 
       const data = await response.json();
-      console.log("Random word from MongoDB:", data);
+      console.log("✅ Random word from MongoDB:", data);
 
       setDailyWord(data.word || "No word available");
       setDefinition(data.shortdef || "Definition not available.");
     } catch (error) {
-      console.error("Error fetching daily word:", error);
+      console.error("❌ Error fetching daily word:", error);
       setDailyWord("No word available");
       setDefinition("Could not connect to server. Please check your backend.");
     } finally {
@@ -58,52 +60,74 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
 
   const getVocabHistoryID = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.GET_LISTS_NO_HISTORY(userID));
+      console.log(" Fetching vocab lists for userID:", userID);
+      const url = API_ENDPOINTS.GET_LISTS_NO_HISTORY(userID);
+      console.log(" Request URL:", url);
+      
+      const response = await fetch(url);
+      
+      console.log(" Response status:", response.status);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch vocab lists');
+        const errorText = await response.text();
+        console.error(" Error response:", errorText);
+        throw new Error(`Failed to fetch vocab lists: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Vocab lists response:", data);
+      console.log(" Vocab lists response:", JSON.stringify(data, null, 2));
       
-      setVocabHistoryID(data.vocabHistoryId);
+      if (data.vocabHistoryId) {
+        setVocabHistoryID(data.vocabHistoryId);
+        console.log(" Vocab History ID set:", data.vocabHistoryId);
+      } else {
+        console.warn("⚠️ No vocabHistoryId in response");
+      }
     } catch (error) {
-      console.error("Error getting vocab history ID:", error);
+      console.error(" Error getting vocab history ID:", error);
+      alert("Error getting vocab history ID: " + error.message);
     }
   };
 
   const saveWordToHistory = async () => {
-    if (dailyWord && definition && vocabHistoryID) {
-      try {
-        const response = await fetch(API_ENDPOINTS.ADD_WORD, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: userID,
-            listId: vocabHistoryID,
-            word: dailyWord,
-            definition: definition
-          }),
-        });
+    if (!dailyWord || !definition) {
+      alert("No word to save");
+      return;
+    }
 
-        const data = await response.json();
+    if (!vocabHistoryID) {
+      alert("Vocab history not loaded yet. Please wait.");
+      return;
+    }
 
-        if (response.ok) {
-          console.log(`✅ Saved '${dailyWord}' to vocabHistory`);
-          alert("Word saved to history!");
-        } else {
-          console.log(`⚠️ ${data.error}`);
-          alert(data.error || "Failed to save word");
-        }
-      } catch (error) {
-        console.error("🚨 Error saving word:", error);
-        alert("Could not connect to server");
+    try {
+      console.log("💾 Saving word to history:", { dailyWord, definition, vocabHistoryID });
+      
+      const response = await fetch(API_ENDPOINTS.ADD_WORD, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userID,
+          listId: vocabHistoryID,
+          word: dailyWord,
+          definition: definition
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(`✅ Saved '${dailyWord}' to vocabHistory`);
+        alert("Word saved to history!");
+      } else {
+        console.log(`⚠️ ${data.error}`);
+        alert(data.error || "Failed to save word");
       }
-    } else {
-      alert("Missing required information to save word");
+    } catch (error) {
+      console.error("🚨 Error saving word:", error);
+      alert("Could not connect to server");
     }
   };
 

@@ -4,24 +4,48 @@ import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useSQLiteContext } from "expo-sqlite";
 
-const VocabListPage = ({ route }) => {
+interface VocabList {
+  listID: number;
+  userID: number;
+  listName: string;
+}
+
+interface RouteParams {
+  userID: number;
+}
+
+interface VocabListPageProps {
+  route: {
+    params: RouteParams;
+  };
+}
+
+interface ItemProps {
+  item: VocabList;
+  onPress: () => void;
+  backgroundColor: string;
+  textColor: string;
+}
+
+const VocabListPage = ({ route }: VocabListPageProps) => {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
-  const [vocabLists, setVocabLists] = useState([]);
+  const [vocabLists, setVocabLists] = useState<VocabList[]>([]);
   const { userID } = route.params;
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const db = useSQLiteContext();
 
   useEffect(() => {
-    // Added due to risk of errors
     let isMounted = true;
 
     if (db) {
       const loadVocabLists = async () => {
         try {
-          // console.log("Fetching vocab lists for userID:", userID); // Debugging
-
-          const results = await db.getAllAsync("SELECT * FROM vocabLists WHERE userID = ?", [userID]);
+          const results = await db.getAllAsync<VocabList>(
+            "SELECT * FROM vocabLists WHERE userID = ?", 
+            [userID]
+          );
+          
           if (isMounted) {
             setVocabLists(results);
           }
@@ -37,18 +61,18 @@ const VocabListPage = ({ route }) => {
       loadVocabLists();
     }
 
-    return () => { isMounted = false; };
+    return () => { 
+      isMounted = false; 
+    };
   }, [db, userID]);
 
-  const Item = ({ item, onPress, backgroundColor, textColor }) => (
+  const Item = ({ item, onPress, backgroundColor, textColor }: ItemProps) => (
     <TouchableOpacity onPress={onPress} style={[styles.item, { backgroundColor }]}>
-      <Text style={[styles.listName, { color: textColor }]}>{item.listName || item.word}</Text>
+      <Text style={[styles.listName, { color: textColor }]}>{item.listName}</Text>
     </TouchableOpacity>
   );
 
-
-  const renderItem = ({ item }) => {
-    // first color is if the item is selected otherwise it appears as the second color
+  const renderItem = ({ item }: { item: VocabList }) => {
     const backgroundColor = item.listID === selectedId ? "#aed6f1" : "#5dade2";
     const color = item.listID === selectedId ? "black" : "white";
 
@@ -57,9 +81,7 @@ const VocabListPage = ({ route }) => {
         item={item}
         onPress={() => {
           setSelectedId(item.listID);
-          // Debugging
-          // console.log("Item List ID: ", item.listID);
-          navigation.navigate("WordListPage", { userID, listID: item.listID });
+          (navigation as any).navigate("WordListPage", { userID, listID: item.listID });
         }}
         backgroundColor={backgroundColor}
         textColor={color}
@@ -70,18 +92,19 @@ const VocabListPage = ({ route }) => {
   return (
     <SafeAreaProvider>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("LandingPage", { userID })}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => (navigation as any).navigate("LandingPage", { userID })}
+        >
           <Text style={styles.backButtonText}>&#8249;- Back</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Your Vocab Lists</Text>
         </View>
-        {/* Added for center alignment */}
         <View style={styles.rightContent} />
       </View>
 
       <SafeAreaView style={styles.container}>
-        {/* Vocab Lists Section */}
         {loading ? (
           <Text>Loading Vocab Lists...</Text>
         ) : vocabLists.length === 0 ? (
@@ -99,7 +122,6 @@ const VocabListPage = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  // need to fix header and comments
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -131,12 +153,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
   },
   noListsText: {
     textAlign: "center",
