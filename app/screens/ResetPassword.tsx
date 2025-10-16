@@ -1,21 +1,14 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 import { useSQLiteContext } from "expo-sqlite";
-
-type RouteParams = {
-  ResetPassword: {
-    email: string;
-  };
-};
-
-type ResetPasswordRouteProp = RouteProp<RouteParams, 'ResetPassword'>;
 
 export default function ResetPassword() {
   const db = useSQLiteContext();
-  const navigation = useNavigation();
-  const route = useRoute<ResetPasswordRouteProp>();
-  const { email } = route.params;
+  const navigation = useNavigation<NavigationProp<any>>();
+  const route = useRoute();
+  const { email } = route.params as { email: string };
 
   const [newPassword, setNewPassword] = useState("");
 
@@ -25,31 +18,30 @@ export default function ResetPassword() {
       return;
     }
 
-    try {
-      await db.runAsync(
-        "UPDATE users SET password = ? WHERE email = ?", 
-        [newPassword, email]
-      );
+    await db.runAsync("UPDATE users SET password = ? WHERE email = ?", [
+      newPassword,
+      email,
+    ]);
 
-      Alert.alert("Success", "Your password has been reset.");
-      (navigation as any).navigate("HomePage");
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      Alert.alert("Error", "Failed to reset password");
-    }
+    Alert.alert("Success", "Your password has been reset.");
+    navigation.navigate("HomePage");
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Reset Password</Text>
-      <TextInput 
-        style={styles.input} 
-        secureTextEntry 
-        value={newPassword} 
-        onChangeText={setNewPassword} 
-        placeholder="Enter new password" 
+      <TextInput
+        style={styles.input}
+        secureTextEntry
+        value={newPassword}
+        onChangeText={setNewPassword}
+        placeholder="Enter new password"
       />
-      <Button title="Complete Reset" onPress={handleResetPassword} color="#FF5733" />
+      <Button
+        title="Complete Reset"
+        onPress={handleResetPassword}
+        color="#FF5733"
+      />
     </View>
   );
 }

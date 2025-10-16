@@ -14,6 +14,7 @@ import ResetPassword from "./screens/ResetPassword";
 import ListCreation from "./screens/ListCreation";
 import WordListPage from "./screens/wordList";
 import PickList from "./screens/PickList";
+import OAuth2Login from "./screens/auth";
 
 const initDB = async (db: SQLiteDatabase) => {
   try {
@@ -43,28 +44,41 @@ const initDB = async (db: SQLiteDatabase) => {
           userID INTEGER NOT NULL,
           word TEXT NOT NULL,
           definition TEXT NOT NULL,
-          FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE
+          FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE,
           FOREIGN KEY (listID) REFERENCES vocabLists(listID) ON DELETE CASCADE
         )
     `);
 
     // Use getFirstAsync and handle the case where no rows are returned
-    const userCountResult = await db.getFirstAsync("SELECT COUNT(*) AS userCount FROM users");
+    const userCountResult = (await db.getFirstAsync(
+      "SELECT COUNT(*) AS userCount FROM users"
+    )) as { userCount: number };
 
     // For Debugging Purposes
     // adds example user and vocab lists with a word already added to the database without needing to create an account on db initialization
-    if (userCountResult && userCountResult.userCount === 0) {  // Safer check
-      await db.execAsync(`INSERT INTO users (email, password, securityQuestion, securityAnswer) VALUES ("testuser", "123", "What is 1 + 1?", "2");`);
+    if (userCountResult && userCountResult.userCount === 0) {
+      // Safer check
+      await db.execAsync(
+        `INSERT INTO users (email, password, securityQuestion, securityAnswer) VALUES ("testuser", "123", "What is 1 + 1?", "2");`
+      );
 
-      await db.execAsync(`INSERT INTO vocabLists (userID, listName) VALUES ("1", "Vocab Word History");`);
-      await db.execAsync(`INSERT INTO vocabLists (userID, listName) VALUES ("1", "Created List for testuser");`);
+      await db.execAsync(
+        `INSERT INTO vocabLists (userID, listName) VALUES ("1", "Vocab Word History");`
+      );
+      await db.execAsync(
+        `INSERT INTO vocabLists (userID, listName) VALUES ("1", "Created List for testuser");`
+      );
 
-      await db.execAsync(`INSERT INTO wordInList (listID, userID, word, definition) VALUES (2, 1, "serendipity", "The occurrence and development of events by chance in a happy or beneficial way.")`)
+      await db.execAsync(
+        `INSERT INTO wordInList (listID, userID, word, definition) VALUES (2, 1, "serendipity", "The occurrence and development of events by chance in a happy or beneficial way.")`
+      );
     }
-
   } catch (error) {
     console.error("Error initializing database:", error);
-    Alert.alert("Error", "Database initialization failed. Please try again later.");
+    Alert.alert(
+      "Error",
+      "Database initialization failed. Please try again later."
+    );
   }
 };
 
@@ -74,20 +88,72 @@ export default function AppNavigator() {
   return (
     <SQLiteProvider databaseName="vocabVault.db" onInit={initDB}>
       <Stack.Navigator initialRouteName="HomePage">
-        <Stack.Screen name="HomePage" component={HomePage} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateAccountPage" component={CreateAccount} options={{ title: "Create an Account" }} />
-        <Stack.Screen name="LoginPage" component={LoginPage} options={{ title: "Log In" }} />
-        <Stack.Screen name="LandingPage" component={LandingPage} options={{ headerShown: false }} />
-        <Stack.Screen name="TestLandingPage" component={TestLandingPage} options={{ headerShown: false }} />
-        <Stack.Screen name="VocabListPage" component={VocabListPage} options={{ headerShown: false }} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPassword} options={{ title: "Forgot Password" }} />
-        <Stack.Screen name="VerifySecurityAnswer" component={VerifySecurityAnswer} options={{ title: "Security Question" }} />
-        <Stack.Screen name="ResetPassword" component={ResetPassword} options={{ title: "Reset Password" }} />
-        <Stack.Screen name="WordListPage" component={WordListPage} options={{ headerShown: false }} />
-        <Stack.Screen name="ListCreation" component={ListCreation} options={{ headerShown: false }} />
-        <Stack.Screen name="PickList" component={PickList} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="HomePage"
+          component={HomePage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateAccountPage"
+          component={CreateAccount}
+          options={{ title: "Create an Account" }}
+        />
+        <Stack.Screen
+          name="LoginPage"
+          component={LoginPage}
+          options={{ title: "Log In" }}
+        />
+        <Stack.Screen
+          name="LandingPage"
+          component={LandingPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="TestLandingPage"
+          component={TestLandingPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="VocabListPage"
+          component={VocabListPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPassword}
+          options={{ title: "Forgot Password" }}
+        />
+        <Stack.Screen
+          name="VerifySecurityAnswer"
+          component={VerifySecurityAnswer}
+          options={{ title: "Security Question" }}
+        />
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPassword}
+          options={{ title: "Reset Password" }}
+        />
+        <Stack.Screen
+          name="WordListPage"
+          component={WordListPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ListCreation"
+          component={ListCreation}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PickList"
+          component={PickList}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="OAuth2Login"
+          component={OAuth2Login}
+          options={{ title: "Google Sign In" }}
+        />
       </Stack.Navigator>
     </SQLiteProvider>
   );
 }
-

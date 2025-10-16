@@ -1,39 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { View, FlatList, StyleSheet, Text, TouchableOpacity } from "react-native";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { useSQLiteContext } from "expo-sqlite";
 import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 
-interface VocabList {
-  listID: number;
-  userID: number;
-  listName: string;
-}
-
-interface WordInList {
-  wordID: number;
-  listID: number;
-  userID: number;
-  word: string;
-  definition: string;
-}
-
-interface RouteParams {
-  userID: number;
-  listID: number;
-}
-
-interface WordListPageProps {
-  route: {
-    params: RouteParams;
-  };
-}
-
-const WordListPage = ({ route }: WordListPageProps) => {
+const WordListPage = ({ route }: { route: any }) => {
   const [loading, setLoading] = useState(true);
   const [listName, setListName] = useState<string | null>(null);
-  const [wordList, setWordList] = useState<WordInList[]>([]);
-  const navigation = useNavigation();
+  const [wordList, setWordList] = useState<any[]>([]);
+  const navigation = useNavigation<NavigationProp<any>>();
   const { userID, listID } = route.params;
   const db = useSQLiteContext();
 
@@ -45,19 +27,20 @@ const WordListPage = ({ route }: WordListPageProps) => {
 
   const loadWordList = async () => {
     try {
-      const existingList = await db.getFirstAsync<VocabList>(
-        "SELECT * FROM vocabLists WHERE userID = ? AND listID = ?", 
+      // Debugging
+      // console.log(`UserID: ${userID} and ListID: ${listID}`);
+      const existingList = (await db.getFirstAsync(
+        "SELECT * FROM vocabLists WHERE userID = ? AND listID = ?",
         [userID, listID]
-      );
-      
-      setListName(existingList?.listName || null);
+      )) as { listName: string };
+      setListName(existingList.listName);
 
-      const vocabWords = await db.getAllAsync<WordInList>(
-        "SELECT * FROM wordInList WHERE userID = ? AND listID = ?", 
-        [userID, listID]
+      const vocabWords = await db.getAllAsync(
+        "SELECT * FROM wordInList WHERE userID = ? AND listID = ?",
+        [userID, `${listID}`]
       );
-      
       setWordList(vocabWords);
+      // console.log("Vocab Words:", vocabWords); // Debugging Purposes
     } catch (error) {
       console.error("Error loading vocab words:", error);
     } finally {
@@ -68,27 +51,27 @@ const WordListPage = ({ route }: WordListPageProps) => {
   return (
     <SafeAreaProvider>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => (navigation as any).navigate("VocabListPage", { userID })}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate("VocabListPage", { userID })}
         >
           <Text style={styles.backButtonText}>&#8249;- Back</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{listName || "Vocab List"}</Text>
+          <Text style={styles.title}>{listName}</Text>
         </View>
+        {/* Added for center alignment */}
         <View style={styles.rightContent} />
       </View>
 
       <SafeAreaView style={styles.container}>
-        {loading ? (
-          <Text>Loading words...</Text>
-        ) : wordList.length === 0 ? (
+        {/* Word List Section */}
+        {wordList.length === 0 ? (
           <Text style={styles.noWordsText}>No words added yet</Text>
         ) : (
           <FlatList
             data={wordList}
-            renderItem={({ item }: { item: WordInList }) => (
+            renderItem={({ item }) => (
               <View style={styles.wordItem}>
                 <Text style={styles.word}>{item.word}</Text>
                 <Text style={styles.definition}>{item.definition}</Text>
@@ -104,14 +87,14 @@ const WordListPage = ({ route }: WordListPageProps) => {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
     backgroundColor: "white",
-    borderBottomColor: '#ddd',
-    justifyContent: 'space-between',
+    borderBottomColor: "#ddd",
+    justifyContent: "space-between",
   },
   backButton: {
     padding: 8,
@@ -121,25 +104,30 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   rightContent: {
     width: 50,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   container: {
     flex: 1,
     paddingHorizontal: 16,
   },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10,
+    textAlign: "center",
+  },
   noWordsText: {
     textAlign: "center",
     color: "#888",
     fontSize: 16,
-    marginTop: 20,
   },
   wordItem: {
     padding: 10,
@@ -154,7 +142,11 @@ const styles = StyleSheet.create({
   definition: {
     fontSize: 16,
     fontStyle: "italic",
-    marginTop: 4,
+  },
+  item: {
+    padding: 20,
+    marginVertical: 8,
+    marginHorizontal: 5,
   },
 });
 
