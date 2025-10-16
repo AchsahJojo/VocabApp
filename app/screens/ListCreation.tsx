@@ -30,27 +30,27 @@ export default function ListCreation({ route }: ListCreationProps) {
   const { userID } = route.params;
 
   const handleListCreation = async () => {
-    alert("Button was pressed!"); // Add this line first
-
     if (!listName.trim()) {
       Alert.alert("Error", "Please enter a list name.");
       return;
     }
-
+  
     setLoading(true);
-    console.log("=".repeat(50));
-    console.log("🔍 Creating list for userID:", userID);
-    console.log("📝 List name:", listName.trim());
+    console.log("=".repeat(60));
+    console.log("🔍 CREATING LIST");
+    console.log("👤 userID:", userID);
+    console.log("👤 userID type:", typeof userID);
+    console.log("📝 listName:", listName.trim());
     console.log("🌐 API URL:", `${API_BASE_URL}/api/vocab/lists`);
-
+  
     try {
       const requestBody = {
         userId: userID,
         listName: listName.trim()
       };
-
+  
       console.log("📦 Request body:", JSON.stringify(requestBody, null, 2));
-
+  
       const response = await fetch(`${API_BASE_URL}/api/vocab/lists`, {
         method: 'POST',
         headers: {
@@ -58,42 +58,53 @@ export default function ListCreation({ route }: ListCreationProps) {
         },
         body: JSON.stringify(requestBody),
       });
-
+  
       console.log("📡 Response status:", response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Error response:", errorText);
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          Alert.alert("Error", errorData.error || "Failed to create list");
-        } catch {
-          Alert.alert("Error", `Failed to create list (${response.status})`);
-        }
+      console.log("📡 Response ok:", response.ok);
+  
+      const responseText = await response.text();
+      console.log("📄 Raw response:", responseText);
+  
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log("✅ Parsed response:", JSON.stringify(data, null, 2));
+      } catch (e) {
+        console.error("❌ Failed to parse response as JSON");
+        Alert.alert("Error", "Invalid response from server");
         return;
       }
-
-      const data = await response.json();
-      console.log("✅ List created successfully:", JSON.stringify(data, null, 2));
-
+  
+      if (!response.ok) {
+        console.error("❌ Error response:", data);
+        Alert.alert("Error", data.error || "Failed to create list");
+        return;
+      }
+  
+      console.log("✅ SUCCESS! List created:", data);
       Alert.alert("Success", "List created successfully!", [
         {
           text: "OK",
-          onPress: () => (navigation as any).navigate("LandingPage", { userID })
+          onPress: () => {
+            console.log("🔙 Navigating back to LandingPage");
+            (navigation as any).navigate("LandingPage", { userID });
+          }
         }
       ]);
-
+  
     } catch (error) {
-      console.error("=".repeat(50));
-      console.error("❌ ERROR CREATING LIST");
-      console.error("❌ Error:", error);
-      console.error("=".repeat(50));
+      console.error("=".repeat(60));
+      console.error("❌ EXCEPTION CAUGHT");
+      console.error("❌ Error type:", error?.constructor?.name);
+      console.error("❌ Error message:", error?.message);
+      console.error("❌ Full error:", error);
+      console.error("=".repeat(60));
       
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       Alert.alert("Connection Error", "Could not connect to server: " + errorMessage);
     } finally {
       setLoading(false);
+      console.log("=".repeat(60));
     }
   };
 
