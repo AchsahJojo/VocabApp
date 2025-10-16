@@ -1,47 +1,37 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 import { useSQLiteContext } from "expo-sqlite";
-
-interface User {
-  securityQuestion: string;
-}
 
 export default function ForgotPassword() {
   const db = useSQLiteContext();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<any>>();
   const [email, setEmail] = useState("");
 
   const handleNext = async () => {
-    try {
-      const user = await db.getFirstAsync<User>(
-        "SELECT securityQuestion FROM users WHERE email = ?", 
-        [email]
-      );
-      
-      if (!user) {
-        Alert.alert("Error", "No account found with this email.");
-        return;
-      }
-      
-      (navigation as any).navigate("VerifySecurityAnswer", { 
-        email, 
-        securityQuestion: user.securityQuestion 
-      });
-    } catch (error) {
-      console.error("Error:", error);
-      Alert.alert("Error", "An error occurred");
+    const user = (await db.getFirstAsync(
+      "SELECT securityQuestion FROM users WHERE email = ?",
+      [email]
+    )) as { securityQuestion: string } | null;
+    if (!user) {
+      Alert.alert("Error", "No account found with this email.");
+      return;
     }
+    navigation.navigate("VerifySecurityAnswer", {
+      email,
+      securityQuestion: user.securityQuestion,
+    });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Forgot Password</Text>
-      <TextInput 
-        style={styles.input} 
-        value={email} 
-        onChangeText={setEmail} 
-        placeholder="Enter your email" 
+      <TextInput
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Enter your email"
       />
       <Button title="Next" onPress={handleNext} color="#FF5733" />
     </View>

@@ -2,10 +2,11 @@ import React from "react";
 import { View, Text, StyleSheet, Button, ImageBackground } from "react-native";
 import { useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 
 export default function HomePage() {
   const router = useRouter();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<any>>();
 
   return (
     <ImageBackground
@@ -18,17 +19,35 @@ export default function HomePage() {
         {/* Box around Log In Button */}
         <View style={styles.box}>
           <View style={styles.buttonContainer}>
-            <Button title="Log In" onPress={() => (navigation as any).navigate("LoginPage")} color="#4CAF50" />
+            <Button
+              title="Log In"
+              onPress={() => navigation.navigate("LoginPage")}
+              color="#4CAF50"
+            />
           </View>
         </View>
 
         {/* Box around Create Account Button */}
         <View style={styles.box}>
           <View style={styles.buttonContainer}>
-            <Button title="Create Account" onPress={() => (navigation as any).navigate("CreateAccountPage")} color="#2196F3" />
+            <Button
+              title="Create Account"
+              onPress={() => navigation.navigate("CreateAccountPage")}
+              color="#2196F3"
+            />
           </View>
         </View>
 
+        {/* Box around Google Sign In Button */}
+        <View style={styles.box}>
+          <View style={styles.buttonContainer}>
+            <Button
+              title="Sign in with Google"
+              onPress={() => navigation.navigate("OAuth2Login")}
+              color="#DB4437"
+            />
+          </View>
+        </View>
       </View>
     </ImageBackground>
   );
@@ -68,4 +87,3 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 });
-

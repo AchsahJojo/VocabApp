@@ -2,16 +2,23 @@ import React from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 
 export default function TestLandingPage() {
   const router = useRouter();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<any>>();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>🎉 Login Successful! 🎉</Text>
-      <Text style={styles.subtitle}>You have been redirected to the test page.</Text>
-      <Button title="Go to HomePage" onPress={() => (navigation as any).navigate("HomePage")} color="#3498db" />
+      <Text style={styles.subtitle}>
+        You have been redirected to the test page.
+      </Text>
+      <Button
+        title="Go to HomePage"
+        onPress={() => navigation.navigate("HomePage")}
+        color="#3498db"
+      />
     </View>
   );
 }

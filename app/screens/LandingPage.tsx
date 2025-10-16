@@ -1,33 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ImageBackground } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ImageBackground,
+  Button,
+} from "react-native";
+import wordList from "../../assets/advanced_words.json";
 import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
+import { useSQLiteContext } from "expo-sqlite";
+import { Asset } from "expo-asset";
 
-// Define API endpoints directly in this file
-const API_BASE_URL = 'http://localhost:8080';
-
-const API_ENDPOINTS = {
-  RANDOM_WORD: `${API_BASE_URL}/api/dictionary/random`,
-  GET_LISTS_NO_HISTORY: (userId: string) => `${API_BASE_URL}/api/vocab/lists/${userId}/exclude-history`,
-  ADD_WORD: `${API_BASE_URL}/api/vocab/words`,
-};
-
-interface RouteParams {
-  userID: string;
-}
-
-interface LandingScreenProps {
-  route: {
-    params: RouteParams;
-  };
-}
-
-const LandingScreen = ({ route }: LandingScreenProps) => {
+const LandingScreen = ({ route }: { route: any }) => {
   const [dailyWord, setDailyWord] = useState<string | null>(null);
   const [definition, setDefinition] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [vocabHistoryID, setVocabHistoryID] = useState<string | null>(null);
-  const navigation = useNavigation();
+  const [vocabHistoryID, setVocabHistoryID] = useState<number | null>(null);
+  const navigation = useNavigation<NavigationProp<any>>();
   const { userID } = route.params;
+  const db = useSQLiteContext();
 
   useEffect(() => {
     fetchDailyWord();
@@ -37,97 +31,72 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
   const fetchDailyWord = async () => {
     setLoading(true);
     try {
-      console.log("🔍 Fetching random word from:", API_ENDPOINTS.RANDOM_WORD);
-      const response = await fetch(API_ENDPOINTS.RANDOM_WORD);
+      const randomWord = wordList[Math.floor(Math.random() * wordList.length)];
+      const API_KEY = "9c3b1721-9b03-4686-954c-91e9137bf51a";
+      const API_URL = `https://www.dictionaryapi.com/api/v3/references/collegiate/json/${randomWord}?key=${API_KEY}`;
+      const response = await fetch(API_URL);
 
       if (!response.ok) {
-        throw new Error('Failed to fetch random word from server');
+        throw new Error(`Failed to fetch definition for ${randomWord}`);
       }
 
       const data = await response.json();
-      console.log("✅ Random word from MongoDB:", data);
+      const fetchedDefinition =
+        data[0]?.shortdef?.[0] || "Definition not available.";
 
-      setDailyWord(data.word || "No word available");
-      setDefinition(data.shortdef || "Definition not available.");
+      setDailyWord(randomWord);
+      setDefinition(fetchedDefinition);
     } catch (error) {
-      console.error("❌ Error fetching daily word:", error);
+      console.error("Error fetching daily word:", error);
       setDailyWord("No word available");
-      setDefinition("Could not connect to server. Please check your backend.");
+      setDefinition("Definition not available.");
     } finally {
       setLoading(false);
     }
   };
 
   const getVocabHistoryID = async () => {
-    try {
-      console.log(" Fetching vocab lists for userID:", userID);
-      const url = API_ENDPOINTS.GET_LISTS_NO_HISTORY(userID);
-      console.log(" Request URL:", url);
-      
-      const response = await fetch(url);
-      
-      console.log(" Response status:", response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(" Error response:", errorText);
-        throw new Error(`Failed to fetch vocab lists: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(" Vocab lists response:", JSON.stringify(data, null, 2));
-      
-      if (data.vocabHistoryId) {
-        setVocabHistoryID(data.vocabHistoryId);
-        console.log(" Vocab History ID set:", data.vocabHistoryId);
-      } else {
-        console.warn("⚠️ No vocabHistoryId in response");
-      }
-    } catch (error) {
-      console.error(" Error getting vocab history ID:", error);
-      alert("Error getting vocab history ID: " + error.message);
-    }
+    // gets the listID of the vocab history list
+    const vocabHistoryID = (await db.getFirstAsync(
+      "SELECT listID FROM vocabLists WHERE userID = ? ORDER BY listID ASC LIMIT 1",
+      [userID]
+    )) as { listID: number };
+    // console.log("User Vocab History ID: ", vocabHistoryID.listID); // Debugging
+    setVocabHistoryID(vocabHistoryID.listID);
   };
 
+  // Might need to add a limit to how many words can be saved to history
   const saveWordToHistory = async () => {
-    if (!dailyWord || !definition) {
-      alert("No word to save");
-      return;
-    }
+    if (dailyWord && definition) {
+      try {
+        const existingWord = await db.getFirstAsync(
+          "SELECT * FROM wordInList WHERE userID = ? AND listID = ? AND word = ?",
+          [userID, vocabHistoryID, dailyWord]
+        );
 
-    if (!vocabHistoryID) {
-      alert("Vocab history not loaded yet. Please wait.");
-      return;
-    }
+        if (existingWord) {
+          console.log(`⚠️ Word '${dailyWord}' already exists in history.`);
+          alert("This word is already in your history!");
+          return;
+        }
 
-    try {
-      console.log("💾 Saving word to history:", { dailyWord, definition, vocabHistoryID });
-      
-      const response = await fetch(API_ENDPOINTS.ADD_WORD, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userID,
-          listId: vocabHistoryID,
-          word: dailyWord,
-          definition: definition
-        }),
-      });
+        const response = await db.runAsync(
+          "INSERT INTO wordInList (listID, userID, word, definition) VALUES (?, ?, ?, ?)",
+          [vocabHistoryID, userID, dailyWord, definition]
+        );
 
-      const data = await response.json();
+        if (response && response.changes > 0) {
+          // Check if changes were made
+          console.log("Insertion successful!");
+        } else {
+          console.log("Insertion failed");
+        }
 
-      if (response.ok) {
         console.log(`✅ Saved '${dailyWord}' to vocabHistory`);
         alert("Word saved to history!");
-      } else {
-        console.log(`⚠️ ${data.error}`);
-        alert(data.error || "Failed to save word");
+      } catch (error) {
+        console.error("🚨 Error saving word:", error);
       }
-    } catch (error) {
-      console.error("🚨 Error saving word:", error);
-      alert("Could not connect to server");
     }
   };
 
@@ -137,9 +106,9 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
       style={styles.background}
     >
       <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.logoutButton} 
-          onPress={() => (navigation as any).navigate("HomePage")}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => navigation.navigate("HomePage")}
         >
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
@@ -150,9 +119,14 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
           <ActivityIndicator size="large" color="#4CAF50" />
         ) : (
           <>
+            {/*  TEXT BOX HERE */}
             <View style={styles.textBox}>
-              <Text style={styles.dailyWord}>{dailyWord || "No word available"}</Text>
-              <Text style={styles.definition}>{definition || "Definition not available."}</Text>
+              <Text style={styles.dailyWord}>
+                {dailyWord || "No word available"}
+              </Text>
+              <Text style={styles.definition}>
+                {definition || "Definition not available."}
+              </Text>
             </View>
           </>
         )}
@@ -165,25 +139,39 @@ const LandingScreen = ({ route }: LandingScreenProps) => {
           <Text style={styles.saveButtonText}>✅ Save Word to History</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.saveButton} 
-          onPress={() => (navigation as any).navigate("PickList", { userID, vocabHistoryID, dailyWord, definition })} 
+        {/*  Need to create custom style for button (Currently using Save Button Style) */}
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={() =>
+            navigation.navigate("PickList", {
+              userID,
+              vocabHistoryID,
+              dailyWord,
+              definition,
+            })
+          }
           accessibilityLabel="Save Word to Vocab List"
         >
-          <Text style={styles.refreshButtonText}>✅ Save to Existing Vocab List</Text>
+          <Text style={styles.refreshButtonText}>
+            ✅ Save to Existing Vocab List
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.createListButton} 
-          onPress={() => (navigation as any).navigate("ListCreation", { userID })} 
+        {/*  Need to create custom style for button (Currently using Save Button Style) */}
+        <TouchableOpacity
+          style={styles.createListButton}
+          onPress={() => navigation.navigate("ListCreation", { userID })}
           accessibilityLabel="Create New List"
         >
           <Text style={styles.createListText}>✨ Create New List</Text>
         </TouchableOpacity>
 
+        {/*  Need to create custom style for button (Currently using Save Button Style) */}
         <TouchableOpacity
           style={styles.vocabListButton}
-          onPress={() => (navigation as any).navigate("VocabListPage", { userID, vocabHistoryID })}
+          onPress={() =>
+            navigation.navigate("VocabListPage", { userID, vocabHistoryID })
+          }
         >
           <Text style={styles.vocabListText}>🚀 View Vocab Lists</Text>
         </TouchableOpacity>
@@ -256,8 +244,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 2,
     borderColor: "#FFA500",
-    marginVertical: 10,
-    alignItems: "center",
+    marginVertical: 10, //Adds spacing around the box
+    alignItems: "center", //Centers text inside the box
   },
   dailyWord: {
     fontSize: 22,
