@@ -2,14 +2,8 @@ import React, { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-// Option 1: If api.ts is at root/config/api.ts
-// import { API_ENDPOINTS } from "../../config/api";
-
-// Option 2: If api.ts is at app/utils/api.ts
-// import { API_ENDPOINTS } from "../utils/api";
-
-// Temporary inline solution - define API_BASE_URL directly in this file
 const API_BASE_URL = 'http://localhost:8080';
+
 const API_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/api/auth/login`,
 };
@@ -30,6 +24,8 @@ export default function LoginPage() {
     console.log("Attempting login with email:", email);
 
     try {
+      console.log("Calling URL:", API_ENDPOINTS.LOGIN);
+      
       const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: 'POST',
         headers: {
@@ -41,19 +37,19 @@ export default function LoginPage() {
         }),
       });
 
+      console.log(" Response status:", response.status);
       const data = await response.json();
-      console.log("Login response:", data);
+      console.log(" Login response:", JSON.stringify(data, null, 2));
 
       if (response.ok) {
-        // Success! Navigate to landing page with userId
+        console.log(" Login successful! UserID:", data.userId);
         (navigation as any).navigate("LandingPage", { userID: data.userId });
       } else {
-        // Show error from backend
         Alert.alert("Login Failed", data.error || "An error occurred");
       }
     } catch (error) {
-      console.error("Login error:", error);
-      Alert.alert("Connection Error", "Could not connect to server. Make sure the backend is running.");
+      console.error(" Login error:", error);
+      Alert.alert("Connection Error", "Could not connect to server. Make sure the backend is running on port 8080.");
     } finally {
       setLoading(false);
     }
@@ -82,7 +78,7 @@ export default function LoginPage() {
         editable={!loading}
       />
       {loading ? (
-        <ActivityIndicator size="large" color="#FF5733" />
+        <ActivityIndicator size="large" color="#FF5733" style={{ marginTop: 20 }} />
       ) : (
         <Button 
           title="Log In" 
